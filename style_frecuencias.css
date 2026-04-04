@@ -1,0 +1,443 @@
+/* style_frecuencias.css */
+:root {
+    --bg-principal: #0f1115;
+    /* Gris casi negro profundo */
+    --card-bg: #1a1d23;
+    /* Gris pizarra oscuro */
+    --header-bg: #21262e;
+    /* Gris técnico de cabecera */
+    --accent-tech: #e2e8f0;
+    /* Gris claro para acentos técnicos */
+    --text-bright: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-dark: #334155;
+    --punto-alerta: #facc15;
+    /* Amarillo vibrante para pines y leyendas */
+    --linea-separadora: rgba(226, 232, 240, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background-color: var(--bg-principal);
+    color: var(--text-bright);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+header {
+    background: var(--header-bg);
+    color: var(--accent-tech);
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--border-dark);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    z-index: 1100;
+}
+
+header h1 {
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+}
+
+.status-bar {
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #10b981; /* Verde esmeralda intenso */
+    border-radius: 50%;
+    box-shadow: 0 0 10px #10b981;
+    animation: status-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes status-pulse {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1); 
+        box-shadow: 0 0 10px #10b981; 
+    }
+    50% { 
+        opacity: 0.4; 
+        transform: scale(0.8); 
+        box-shadow: 0 0 2px #10b981; 
+    }
+}
+
+main {
+    display: flex;
+    flex: 1;
+    padding: 15px;
+    gap: 15px;
+    overflow: hidden;
+}
+
+.card-container {
+    background: var(--card-bg);
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.map-card {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Asegurar que use todo el alto del main */
+}
+
+.panel-card {
+    flex: 2;
+    min-width: 450px;
+}
+
+.card-title-fixed {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-dark);
+    font-weight: 700;
+    color: var(--accent-tech);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.03);
+    letter-spacing: 0.5px;
+}
+
+.card-title-fixed::before {
+    content: '';
+    width: 4px;
+    height: 18px;
+    background: var(--punto-alerta);
+    display: inline-block;
+    border-radius: 2px;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    min-height: 550px; /* Altura mínima de seguridad */
+    flex: 1;
+    z-index: 10;
+    background: #000;
+}
+
+/* Máscara táctica oscura para TODO el TABLERO PRINCIPAL (Todas las capas) */
+#map .leaflet-tile-pane {
+    filter: brightness(0.6) contrast(1.2) grayscale(0.5) invert(1) hue-rotate(180deg) !important;
+}
+
+/* El mini-mapa del modal queda sin filtros para ver el terreno real */
+#mini-map .leaflet-tile-pane {
+    filter: none !important;
+}
+
+/* Estilo Premium para el Selector de Capas */
+.leaflet-control-layers {
+    background: rgba(26, 29, 35, 0.95) !important;
+    color: #fff !important;
+    border: 1px solid rgba(125, 211, 252, 0.2) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+    padding: 10px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 0.7rem !important;
+}
+
+.leaflet-control-layers-expanded {
+    min-width: 180px !important;
+}
+
+.leaflet-control-layers-list label {
+    margin: 8px 0 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.map-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: rgba(26, 29, 35, 0.95);
+    padding: 8px 15px;
+    border-radius: 4px;
+    border: 1px solid var(--border-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-bright);
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--punto-alerta);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--punto-alerta);
+}
+
+.table-header-pro {
+    background: var(--header-bg);
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-main h2 {
+    font-size: 1rem;
+    font-weight: 900;
+    color: var(--accent-tech); /* Restaurado a claro */
+}
+
+.counter-badge {
+    background: var(--punto-alerta);
+    color: #000;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-weight: 900;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    padding: 12px 8px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--header-bg);
+    border-bottom: 2px solid var(--border-dark);
+    color: var(--accent-tech);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    text-align: left;
+}
+
+td {
+    padding: 12px 8px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--linea-separadora);
+    color: #cbd5e1; /* Color slate suave de la imagen */
+}
+
+/* Resaltar la primera y última columna (usualmente ID y Dato principal) */
+tr td:first-child,
+tr td:nth-child(3),
+tr td:last-child {
+    color: #7dd3fc; /* Azul suave técnico de la imagen */
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btn-clear-all {
+    background: #fee2e2;
+    color: #ef4444;
+    padding: 6px 16px;
+    border: 1px solid #fecaca;
+    font-weight: 800;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-clear-all:hover {
+    background: #fecaca;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+/* Botones internos de los filtros (Limpiar/Cerrar) */
+.filter-actions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+/* Estilos del Modal Premium (Efecto Holograma) */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3); 
+    z-index: 5000;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Nota: Eliminado backdrop-filter por solicitud del usuario */
+
+.modal-card {
+    background: rgba(26, 29, 35, 0.95); /* Cristal oscuro ligeramente translúcido */
+    width: 98%;
+    max-width: 1050px; /* Expandido para alojar el mapa dual */
+    border: 1px solid rgba(125, 211, 252, 0.3);
+    border-radius: 12px;
+    padding: 30px;
+    position: relative;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(125, 211, 252, 0.1);
+    animation: modal-pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-layout-dual {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr; /* Mapa | Datos */
+    gap: 30px;
+}
+
+@media (max-width: 800px) {
+    .modal-layout-dual {
+        grid-template-columns: 1fr;
+    }
+}
+
+@keyframes modal-pop-in {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-color: #ef4444;
+    transform: rotate(90deg);
+}
+
+.modal-body-scroll {
+    max-height: 400px; /* Altura máxima para aeropuertos con mucha data */
+    overflow-y: auto;
+    padding-right: 12px;
+    margin-right: -10px;
+}
+
+/* Scrollbar Personalizado */
+.modal-body-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-body-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.modal-body-scroll::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 10px;
+}
+
+.modal-body-scroll::-webkit-scrollbar-thumb:hover {
+    background: #facc15;
+}
+
+.btn-text {
+    background: none;
+    border: none;
+    color: var(--accent-tech);
+    font-weight: 700;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.btn-text:hover {
+    opacity: 1;
+}
+
+.btn-text-red {
+    color: #ff3e3e; /* Rojo técnico de tu imagen */
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-principal);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-dark);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}

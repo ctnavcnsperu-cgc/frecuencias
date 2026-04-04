@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoreo Operativo Perú - Lima Airport</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-principal: #0f1115;
+            /* Gris casi negro profundo */
+            --card-bg: #1a1d23;
+            /* Gris pizarra oscuro */
+            --header-bg: #21262e;
+            /* Gris técnico de cabecera */
+            --accent-tech: #e2e8f0;
+            /* Gris claro para acentos técnicos */
+            --text-bright: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-dark: #334155;
+            --punto-alerta: #ff3e3e;
+            /* Rojo puro para alertas críticas */
+            --azul-notam: #e2e8f0;
+            --azul-oscuro: #0f1115;
+            --linea-separadora: rgba(226, 232, 240, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-principal);
+            color: var(--text-bright);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: auto;
+        }
+
+        header {
+            background: var(--header-bg);
+            color: var(--accent-tech);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-dark);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+            z-index: 1100;
+        }
+
+        header h1 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .status-bar {
+            font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+            min-height: calc(100vh - 60px);
+            flex-wrap: wrap;
+        }
+
+        .card-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dark);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: relative;
+            flex: 1;
+            min-width: 450px;
+            min-height: 550px;
+        }
+
+        .card-title-fixed {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-dark);
+            font-weight: 700;
+            color: var(--accent-tech);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.03);
+            letter-spacing: 0.5px;
+        }
+
+        .card-title-fixed::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: var(--punto-alerta);
+            display: inline-block;
+            border-radius: 2px;
+        }
+
+        #map {
+            width: 100%;
+            flex: 1;
+            z-index: 10;
+        }
+
+        /* Efecto de atenuado tipo Centro de Control para resaltar información */
+        .leaflet-tile-pane {
+            filter: brightness(0.5) contrast(1.1) saturate(0.7);
+        }
+
+        .leaflet-container {
+            background-color: #f8fafc !important;
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(26, 29, 35, 0.95);
+            padding: 8px 15px;
+            border-radius: 4px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid var(--border-dark);
+            color: var(--text-bright);
+        }
+
+        .legend-airplane {
+            width: 18px;
+            height: 18px;
+            color: #FFD700;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .airplane-marker {
+            background: none !important;
+            border: none !important;
+            transition: transform 0.3s ease-out;
+        }
+
+        .airplane-icon-wrapper {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        }
+
+        .airplane-icon-wrapper svg {
+            width: 100%;
+            height: 100%;
+            fill: #FFD700;
+            /* Amarillo pro */
+            stroke: #222;
+            stroke-width: 1.5px;
+        }
+
+        .airplane-arrival {
+            transform: rotate(180deg);
+        }
+
+        .airplane-departure {
+            transform: rotate(0deg);
+        }
+
+        /* Filtros Pro en Cabecera */
+        .table-header-pro {
+            background: var(--header-bg);
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header-pro h2 {
+            font-size: 0.85rem;
+            color: var(--accent-tech);
+            font-weight: 700;
+        }
+
+        .th-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            padding: 12px 15px;
+        }
+
+        th {
+            padding: 0 !important;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: var(--header-bg);
+            border-bottom: 2px solid var(--border-dark);
+            color: var(--accent-tech);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .filter-trigger {
+            color: #94a3b8;
+            transition: color 0.2s;
+            font-size: 0.8rem;
+        }
+
+        th:hover .filter-trigger {
+            color: var(--accent-tech);
+        }
+
+        .filter-trigger.active {
+            color: var(--punto-alerta);
+        }
+
+        .filter-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--header-bg);
+            border: 1px solid var(--border-dark);
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            padding: 8px 0;
+            margin-top: 5px;
+            text-align: left;
+            color: var(--text-bright);
+        }
+
+        .filter-panel.show {
+            display: block;
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .filter-search {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-dark);
+        }
+
+        .filter-search input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--border-dark);
+            background: var(--bg-principal);
+            color: var(--text-bright);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        .filter-search input:focus {
+            border-color: var(--accent-tech);
+        }
+
+        .filter-item {
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: var(--text-muted);
+        }
+
+        .filter-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-bright);
+        }
+
+        .filter-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--accent-tech);
+        }
+
+        .filter-actions {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border-dark);
+            display: flex;
+            justify-content: space-between;
+            background: var(--header-bg);
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--accent-tech);
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            opacity: 0.8;
+        }
+
+        .btn-text:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .btn-clear-all {
+            background: #fee2e2;
+            color: #ef4444;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            border: 1px solid #fecaca;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-clear-all:hover {
+            background: #fecaca;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 12px 15px;
+            font-size: 0.8rem;
+            border-bottom: 1px solid var(--border-dark);
+            color: var(--text-bright);
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Marcadores Mapa */
+
+        .leaflet-tooltip-own {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #FFD700 !important;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 0;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+            pointer-events: auto !important;
+            cursor: pointer;
+            z-index: 1000;
+            letter-spacing: 0.5px;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .tooltip-city-label {
+            font-size: 0.6rem;
+            color: #ffffff;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-top: 1px;
+        }
+
+        .leaflet-tooltip-left::before,
+        .leaflet-tooltip-right::before,
+        .leaflet-tooltip-top::before,
+        .leaflet-tooltip-bottom::before {
+            display: none !important;
+        }
+
+        .badge-salida {
+            background-color: #94a3b8;
+            color: #0a1f35;
+            font-weight: 800;
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            border: 1px solid #64748b;
+        }
+
+        .badge-llegada {
+            background-color: #0c3a5c;
+            color: #7dd3fc;
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            border: 1px solid #1e5a8a;
+        }
+
+        .leaflet-control-reset {
+            background-color: #fff;
+            width: 32px;
+            height: 32px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-bottom: 2px solid #e2e8f0;
+            transition: all 0.2s;
+            padding: 0;
+            text-decoration: none;
+        }
+
+        .badge-cancel {
+            background: #1A1D23;
+            color: #ff1a1a;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-weight: 800;
+            font-size: 0.7rem;
+            border: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .vuelo-id {
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .text-soft {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .counter-badge {
+            background: var(--punto-alerta);
+            color: white;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Radar Pulse System */
+        .hub-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hub-radar-pulse {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 215, 0, 0.05);
+            /* Igualado a la intensidad de los aviones */
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            /* Igualado a la intensidad de los aviones */
+            border-radius: 50%;
+            position: absolute;
+            animation: hub-radar-anim 3s infinite ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes hub-radar-anim {
+            0% {
+                transform: scale(0.2);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(3.5);
+                opacity: 0;
+            }
+        }
+
+        .hub-center-dot {
+            width: 16px;
+            height: 16px;
+            background: #FFD700;
+            border: 3px solid #1a1d23;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 1);
+            z-index: 1000;
+        }
+
+        .airplane-radar-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .airplane-pulse {
+            width: 80px;
+            /* Tamaño igual al HUB para crear la malla */
+            height: 80px;
+            background: rgba(255, 215, 0, 0.05);
+            /* Opacidad muy baja para elegancia */
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 50%;
+            position: absolute;
+            animation: hub-radar-anim 3s infinite ease-out;
+            /* Misma animación que el HUB */
+            pointer-events: none;
+        }
+
+        @keyframes airplane-pulse-anim {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .leaflet-tooltip-hub {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            /* Quitar recuadro fantasma */
+            color: #FFD700 !important;
+            font-weight: 900;
+            font-size: 1.1rem;
+            text-shadow: none !important;
+            /* Quitar sombra negra */
+            letter-spacing: 1px;
+        }
+
+        /* Estilos personalizados para el Popup (Dark Mode) */
+        .leaflet-popup-tip-container {
+            display: none !important;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--card-bg) !important;
+            color: var(--text-bright) !important;
+            border: 1px solid var(--border-dark) !important;
+            border-radius: 4px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 15px !important;
+            line-height: 1.4 !important;
+        }
+
+        .popup-header {
+            text-align: center;
+            border-bottom: 2px solid var(--punto-alerta);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+        }
+
+        .popup-header b {
+            font-size: 1.1rem;
+            color: var(--accent-tech);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .popup-flight-item {
+            border-bottom: 1px solid var(--linea-separadora);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .popup-flight-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .popup-flight-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .popup-flight-id {
+            color: var(--text-bright);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .popup-flight-time {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .popup-flight-info {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .leaflet-popup-close-button {
+            color: var(--text-muted) !important;
+            padding: 8px 8px 0 0 !important;
+        }
+
+        .leaflet-popup-close-button:hover {
+            color: var(--text-bright) !important;
+            background: transparent !important;
+        }
+
+        /* Custom Zoom Slider Styling */
+        .zoom-slider-container {
+            background: rgba(26, 29, 35, 0.9);
+            border: 1px solid var(--border-dark);
+            padding: 10px 5px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .zoom-slider-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .vertical-slider {
+            -webkit-appearance: none;
+            width: 4px;
+            height: 120px;
+            background: var(--border-dark);
+            outline: none;
+            border-radius: 2px;
+            writing-mode: bt-lr;
+            /* For some browsers */
+            appearance: slider-vertical;
+            /* For modern browsers */
+        }
+
+        .vertical-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #FFD700;
+            cursor: pointer;
+            border-radius: 2px;
+            border: 2px solid #1a1d23;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+
+        .vertical-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: #FFD700;
+            cursor: pointer;
+            border-radius: 2px;
+            border: 2px solid #1a1d23;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Estilo para las líneas de conexión */
+        .connection-line {
+            stroke-dasharray: 4, 8;
+            animation: dash-animation 30s linear infinite;
+            filter: drop-shadow(0 0 2px #FFFFFF);
+            /* Resplandor blanco */
+            pointer-events: none;
+        }
+
+        @keyframes dash-animation {
+            to {
+                stroke-dashoffset: -500;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="header-title-group" style="display: flex; align-items: center; gap: 20px;">
+            <h1>VUELOS CANCELADOS - AIJCH</h1>
+            <a href="history.html" class="btn-history"
+                style="background: #334155; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid var(--border-dark);">HISTORIAL</a>
+        </div>
+        <div class="status-bar" id="sync-time">Cargando datos operativos...</div>
+    </header>
+
+    <main>
+        <div class="card-container">
+            <div class="card-title-fixed">MONITOREO OPERATIVO PERÚ</div>
+            <div id="map"></div>
+            <div class="map-legend">
+                <div class="legend-airplane">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                    </svg>
+                </div>
+                <span>Vuelos Cancelados</span>
+            </div>
+        </div>
+
+        <div class="card-container">
+            <div class="table-header-pro">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h2>PANEL DE CONTROL</h2>
+                    <div id="flight-count-badge" class="counter-badge">0</div>
+                    <button id="btn-reset-filters" class="btn-clear-all">
+                        <span>✕</span> LIMPIAR FILTROS
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="flights-table">
+                    <thead>
+                        <tr>
+                            <th data-field="tipo">
+                                <div class="th-content">
+                                    <span>Sentido</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-tipo"></div>
+                            </th>
+                            <th data-field="vuelo">
+                                <div class="th-content">
+                                    <span>Vuelo</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-vuelo"></div>
+                            </th>
+                            <th data-field="aerolinea">
+                                <div class="th-content">
+                                    <span>Aerolínea</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-aerolinea"></div>
+                            </th>
+                            <th data-field="ciudad">
+                                <div class="th-content">
+                                    <span>Ciudad</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-ciudad"></div>
+                            </th>
+                            <th>
+                                <div class="th-content"><span>H. Prog</span></div>
+                            </th>
+                            <th>
+                                <div class="th-content"><span>Estado</span></div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const COORDENADAS = {
+            "LIMA": [-12.0219, -77.1143],
+            "AREQUIPA": [-16.3411, -71.5668],
+            "CUSCO": [-13.5357, -71.9153],
+            "IQUITOS": [-3.7847, -73.3088],
+            "PIURA": [-5.2056, -80.6164],
+            "JULIACA": [-15.4671, -70.1582],
+            "TARAPOTO": [-6.5085, -76.3732],
+            "TRUJILLO": [-8.0805, -79.1089],
+            "PUCALLPA": [-8.3779, -74.5742],
+            "TACNA": [-18.0531, -70.2759],
+            "SAN JUAN DE MARCONA": [-15.3615, -75.1633],
+            "CHICLAYO": [-6.7875, -79.8281],
+            "CAJAMARCA": [-7.1395, -78.4897],
+            "AYACUCHO": [-13.1547, -74.2043],
+            "PUERTO MALDONADO": [-12.6133, -69.2286],
+            "TUMBES": [-3.5525, -80.3814],
+            "TALARA": [-4.5128, -81.2541],
+            "JAUJA": [-11.7831, -75.4742],
+            "HUANUCO": [-9.8783, -76.2047],
+            "ANTA - HUARAZ": [-9.3475, -77.5983],
+            "JAEN": [-5.5925, -78.7725],
+            "YURIMAGUAS": [-5.8953, -76.1206],
+            "ILO": [-17.6975, -71.3469],
+            "PISCO": [-13.7439, -76.2203],
+            "TINGO MARIA": [-9.2847, -75.9961],
+            "ANDAHUAYLAS": [-13.6558, -73.3517],
+            "CHACHAPOYAS": [-6.2025, -77.8547],
+            "MAZAMARI": [-11.3267, -74.5317],
+            "NUEVO MUNDO": [-11.5500, -73.1333]
+        };
+
+        const initialCenter = [-9.35, -75.80];
+        const initialZoom = 5.6;
+        const bounds = [[10.0, -95.0], [-25.0, -60.0]];
+
+        const map = L.map('map', {
+            zoomControl: false,
+            minZoom: 4.0,
+            maxZoom: 14,
+            zoomSnap: 0.1,
+            maxBounds: bounds,
+            maxBoundsViscosity: 1.0
+        }).setView(initialCenter, initialZoom);
+
+        const mapaEstandar = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
+        const mapaSatelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
+        const mapaRelieve = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 13 });
+
+        const baseMaps = {
+            "🗺️ MAPA ESTÁNDAR": mapaEstandar,
+            "🛰️ VISTA SATÉLITE": mapaSatelite,
+            "🏔️ RELIEVE DE LOS ANDES": mapaRelieve
+        };
+
+        mapaEstandar.addTo(map);
+        L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+        L.Control.ResetView = L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd: function (map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                const button = L.DomUtil.create('a', 'leaflet-control-reset', container);
+                button.setAttribute('title', 'Resetear Vista');
+                button.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--azul-oscuro); display: block;"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><circle cx="12" cy="12" r="1" fill="currentColor"></circle></svg>`;
+                L.DomEvent.on(button, 'click', (e) => { L.DomEvent.stopPropagation(e); map.setView(initialCenter, initialZoom); });
+                return container;
+            }
+        });
+
+        L.Control.ZoomSlider = L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd: function (map) {
+                const container = L.DomUtil.create('div', 'zoom-slider-container leaflet-control');
+                container.innerHTML = `
+                    <span class="zoom-slider-label">IN</span>
+                    <input type="range" class="vertical-slider" id="map-zoom-slider" 
+                           min="${map.getMinZoom()}" max="${map.getMaxZoom()}" 
+                           step="0.1" value="${map.getZoom()}" 
+                           orient="vertical">
+                    <span class="zoom-slider-label">OUT</span>
+                `;
+
+                const slider = container.querySelector('#map-zoom-slider');
+
+                // Prevenir que el mapa se mueva al arrastrar el slider
+                L.DomEvent.disableClickPropagation(container);
+                L.DomEvent.disableScrollPropagation(container);
+
+                L.DomEvent.on(slider, 'input', (e) => {
+                    map.setZoom(e.target.value);
+                });
+
+                map.on('zoomend', () => {
+                    slider.value = map.getZoom();
+                });
+
+                return container;
+            }
+        });
+
+        map.addControl(new L.Control.ResetView());
+        map.addControl(new L.Control.ZoomSlider());
+
+        let lastData = null;
+        let activeFilters = { tipo: [], vuelo: [], aerolinea: [], ciudad: [] };
+
+        function toggleFilterPanel(panelId) {
+            const panel = document.getElementById(panelId);
+            const isVisible = panel.classList.contains('show');
+            document.querySelectorAll('.filter-panel').forEach(p => p.classList.remove('show'));
+            if (!isVisible) {
+                renderFilterOptions(panelId);
+                panel.classList.add('show');
+            }
+        }
+
+        function renderFilterOptions(panelId) {
+            const field = panelId.replace('filter-', '');
+            const panel = document.getElementById(panelId);
+            const values = [...new Set(lastData.vuelos.map(v => v[field]))].sort();
+
+            let html = `<div class="filter-search"><input type="text" placeholder="Buscar..." oninput="filterLocalList(this)"></div><div class="filter-list">`;
+            values.forEach(val => {
+                const isChecked = activeFilters[field].includes(val);
+                html += `<label class="filter-item"><input type="checkbox" ${isChecked ? 'checked' : ''} onchange="updateFilter('${field}', '${val}', this.checked)"><span>${val}</span></label>`;
+            });
+            html += `</div><div class="filter-actions"><button class="btn-text" onclick="clearColumnFilter('${field}')">Limpiar</button><button class="btn-text" style="color:var(--punto-alerta)" onclick="closeAllPanels()">Cerrar</button></div>`;
+            panel.innerHTML = html;
+        }
+
+        function filterLocalList(input) {
+            const term = input.value.toLowerCase();
+            const items = input.parentElement.nextElementSibling.querySelectorAll('.filter-item');
+            items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; });
+        }
+
+        function updateFilter(field, value, isChecked) {
+            if (isChecked) { if (!activeFilters[field].includes(value)) activeFilters[field].push(value); }
+            else { activeFilters[field] = activeFilters[field].filter(v => v !== value); }
+            applyFilters();
+        }
+
+        function clearColumnFilter(field) {
+            activeFilters[field] = [];
+            applyFilters();
+            renderFilterOptions(`filter-${field}`);
+        }
+
+        function applyFilters() {
+            const hasAnyFilter = Object.values(activeFilters).some(f => f.length > 0);
+            document.getElementById('btn-reset-filters').style.display = hasAnyFilter ? 'flex' : 'none';
+            Object.keys(activeFilters).forEach(field => {
+                const th = document.querySelector(`th[data-field="${field}"]`);
+                if (th) {
+                    const trigger = th.querySelector('.filter-trigger');
+                    if (activeFilters[field].length > 0) { trigger.classList.add('active'); trigger.innerText = '●'; }
+                    else { trigger.classList.remove('active'); trigger.innerText = '▼'; }
+                }
+            });
+            renderDashboard(lastData);
+        }
+
+        function closeAllPanels() { document.querySelectorAll('.filter-panel').forEach(p => p.classList.remove('show')); }
+
+        document.getElementById('btn-reset-filters').addEventListener('click', () => {
+            activeFilters = { tipo: [], vuelo: [], aerolinea: [], ciudad: [] };
+            applyFilters();
+        });
+
+        document.querySelectorAll('th[data-field]').forEach(th => {
+            th.querySelector('.th-content').addEventListener('click', (e) => { e.stopPropagation(); toggleFilterPanel(`filter-${th.getAttribute('data-field')}`); });
+        });
+
+        document.addEventListener('click', (e) => { if (!e.target.closest('.filter-panel')) closeAllPanels(); });
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('vuelos_dashboard.json');
+                const data = await response.json();
+                lastData = data;
+                renderDashboard(data);
+            } catch (e) { console.warn("Error cargando datos."); }
+        }
+
+        function renderDashboard(data) {
+            if (!data) return;
+            document.getElementById('sync-time').innerText = `SINCRONIZACIÓN: ${data.ultima_sincronizacion}`;
+
+            const vuelosFiltrados = data.vuelos.filter(v => {
+                let match = true;
+                Object.keys(activeFilters).forEach(field => {
+                    if (activeFilters[field].length > 0 && !activeFilters[field].includes(v[field])) match = false;
+                });
+                return match;
+            });
+
+            document.getElementById('flight-count-badge').innerText = `${vuelosFiltrados.length} VUELOS VISIBLES`;
+
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
+
+            // Limpiar marcadores y líneas previas
+            if (window.hoverLinesGroup) window.hoverLinesGroup.clearLayers();
+            else window.hoverLinesGroup = L.layerGroup().addTo(map);
+
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker || layer instanceof L.Polyline) map.removeLayer(layer);
+            });
+
+            if (vuelosFiltrados.length > 0) {
+                const vuelosPorCiudad = {};
+                vuelosFiltrados.forEach(vuelo => {
+                    const isSalida = vuelo.tipo === 'SALIDAS';
+                    const badgeClass = isSalida ? 'badge-salida' : 'badge-llegada';
+                    const row = `<tr>
+                        <td><span class="${badgeClass}">${isSalida ? '🛫 SALIDA' : '🛬 LLEGADA'}</span></td>
+                        <td class="vuelo-id">${vuelo.vuelo}</td>
+                        <td style="color: var(--text-muted); font-size: 0.75rem; opacity: 0.8;">${vuelo.aerolinea}</td>
+                        <td class="text-soft"><b>${vuelo.ciudad}</b></td>
+                        <td class="text-soft">${vuelo.hora_prog}</td>
+                        <td><span class="badge-cancel">CANCELADO</span></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+
+                    const ciudadUpper = vuelo.ciudad.toUpperCase();
+                    if (!vuelosPorCiudad[ciudadUpper]) vuelosPorCiudad[ciudadUpper] = [];
+                    vuelosPorCiudad[ciudadUpper].push(vuelo);
+                });
+
+                const LIMA_COORDS = COORDENADAS["LIMA"];
+
+                // 1. Dibujar HUB LIMA con pulso muy amplio y lento
+                const hubHtml = `<div class="hub-container"><div class="hub-radar-pulse"></div><div class="hub-center-dot"></div></div>`;
+                // Ajustamos iconAnchor de [40, 40] a [40, 20] para bajar el marcador 20px
+                const hubMarkIcon = L.divIcon({ className: 'custom-hub', html: hubHtml, iconSize: [80, 80], iconAnchor: [40, 20] });
+                const hubMarker = L.marker(LIMA_COORDS, { icon: hubMarkIcon }).addTo(map);
+                // Ajustamos offset de [0, -25] a [0, -5] para bajar el nombre 20px
+                hubMarker.bindTooltip("AIJCH", { permanent: true, direction: 'top', className: 'leaflet-tooltip-hub', offset: [0, -5] });
+
+                // Evento para el HUB: Mostrar todas las líneas
+                hubMarker.on('mouseover', () => {
+                    window.hoverLinesGroup.clearLayers();
+                    Object.keys(vuelosPorCiudad).forEach(ciudadKey => {
+                        if (COORDENADAS[ciudadKey] && ciudadKey !== "LIMA") {
+                            L.polyline([LIMA_COORDS, COORDENADAS[ciudadKey]], {
+                                color: '#FFFFFF', // Blanco
+                                weight: 1.5, // Un poco más fuerte
+                                opacity: 0.5, // Un poco más fuerte
+                                className: 'connection-line'
+                            }).addTo(window.hoverLinesGroup);
+                        }
+                    });
+                });
+                hubMarker.on('mouseout', () => {
+                    window.hoverLinesGroup.clearLayers();
+                });
+
+                Object.keys(vuelosPorCiudad).forEach(ciudadKey => {
+                    const vuelosLugar = vuelosPorCiudad[ciudadKey];
+                    if (COORDENADAS[ciudadKey] && ciudadKey !== "LIMA") {
+                        const [lat, lon] = COORDENADAS[ciudadKey];
+                        const isSalida = vuelosLugar.some(v => v.tipo === 'SALIDAS');
+
+                        // 2. Dibujar el Avión con su propio pulso de radar (quité líneas)
+                        const airplaneSvg = `
+                            <div class="airplane-radar-wrapper">
+                                <div class="airplane-pulse"></div>
+                                <div class="airplane-icon-wrapper ${isSalida ? 'airplane-departure' : 'airplane-arrival'}">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+                                    </svg>
+                                </div>
+                            </div>`;
+
+                        const planeIcon = L.divIcon({
+                            className: 'airplane-marker',
+                            html: airplaneSvg,
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        });
+
+                        const marker = L.marker([lat, lon], { icon: planeIcon }).addTo(map);
+
+                        // Evento para el avión: Mostrar su propia línea al HUB
+                        marker.on('mouseover', () => {
+                            window.hoverLinesGroup.clearLayers(); // Limpiamos por si hay otras activas
+                            L.polyline([[lat, lon], LIMA_COORDS], {
+                                color: '#FFFFFF', // Blanco
+                                weight: 1.5, // Igualado a la malla del HUB
+                                opacity: 0.5, // Igualado a la malla del HUB
+                                className: 'connection-line'
+                            }).addTo(window.hoverLinesGroup);
+                        });
+                        marker.on('mouseout', () => {
+                            window.hoverLinesGroup.clearLayers();
+                        });
+
+                        const flightLabels = vuelosLugar.map(v => v.vuelo).join(' · ');
+                        const tooltipHtml = `<div>${flightLabels}</div><div class="tooltip-city-label">${ciudadKey}</div>`;
+                        marker.bindTooltip(tooltipHtml, { permanent: true, direction: 'right', className: 'leaflet-tooltip-own', offset: [15, 0], interactive: true });
+
+                        let popup = `
+                            <div class="popup-header">
+                                <b>${ciudadKey}</b>
+                            </div>
+                            <div style="display:flex; flex-direction:column;">`;
+
+                        vuelosLugar.forEach(v => {
+                            popup += `
+                                <div class="popup-flight-item">
+                                    <div class="popup-flight-row">
+                                        <span class="popup-flight-id">${v.vuelo}</span>
+                                        <span class="popup-flight-time">${v.hora_prog}</span>
+                                    </div>
+                                    <div class="popup-flight-info">
+                                        <span>${v.tipo === 'SALIDAS' ? '🛫' : '🛬'}</span>
+                                        <span>${v.aerolinea}</span>
+                                    </div>
+                                </div>`;
+                        });
+                        popup += `</div>`;
+                        marker.bindPopup(popup);
+                    }
+                });
+            }
+        }
+
+        updateDashboard();
+        setInterval(updateDashboard, 60000);
+    </script>
+</body>
+
+</html>

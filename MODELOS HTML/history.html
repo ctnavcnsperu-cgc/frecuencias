@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Cancelaciones - Lima Airport</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        :root {
+            --bg-principal: #0f1115;
+            /* Gris casi negro profundo */
+            --card-bg: #1a1d23;
+            /* Gris pizarra oscuro */
+            --header-bg: #21262e;
+            /* Gris técnico de cabecera */
+            --accent-tech: #e2e8f0;
+            /* Gris claro para acentos técnicos */
+            --text-bright: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-dark: #334155;
+            --punto-alerta: #ff3e3e;
+            /* Rojo puro para alertas críticas */
+            --azul-notam: #e2e8f0;
+            --azul-oscuro: #0f1115;
+            --linea-separadora: rgba(226, 232, 240, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-principal);
+            color: var(--text-bright);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: auto;
+        }
+
+        header {
+            background: var(--header-bg);
+            color: var(--accent-tech);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-dark);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+            z-index: 1100;
+        }
+
+        .header-title-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn-live {
+            background: #334155;
+            color: var(--text-bright);
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+            border: 1px solid var(--border-dark);
+        }
+
+        .btn-live:hover {
+            background: #475569;
+            border-color: var(--text-muted);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        header h1 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            color: var(--text-bright);
+        }
+
+        .filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-dark);
+        }
+
+        .date-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-search {
+            background: #3b82f6;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-search:hover {
+            background: #2563eb;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-search:active {
+            transform: translateY(0);
+        }
+
+        .filter-controls label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .filter-controls input[type="date"] {
+            background: var(--bg-principal);
+            border: 1px solid var(--border-dark);
+            color: var(--text-bright);
+            padding: 6px 32px 6px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+            width: 145px;
+            position: relative;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .filter-controls input[type="date"]:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .date-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .calendar-icon {
+            position: absolute;
+            right: 10px;
+            width: 16px;
+            height: 16px;
+            stroke: var(--text-muted);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            pointer-events: none;
+            transition: stroke 0.2s;
+        }
+
+        .date-input-wrapper:hover .calendar-icon {
+            stroke: var(--text-bright);
+        }
+
+        /* Ocultar el icono por defecto y extender el área clicable */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .status-bar {
+            font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+            min-height: calc(100vh - 60px);
+            flex-wrap: wrap;
+        }
+
+        .card-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dark);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: relative;
+            flex: 1;
+            min-width: 450px;
+            min-height: 550px;
+        }
+
+        .card-title-fixed {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-dark);
+            font-weight: 700;
+            color: var(--accent-tech);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.03);
+            letter-spacing: 0.5px;
+        }
+
+        .card-title-fixed::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: var(--punto-alerta);
+            display: inline-block;
+            border-radius: 2px;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            padding: 25px;
+            flex: 1;
+        }
+
+        .chart-container-inner {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 420px;
+        }
+
+        .chart-label-pro {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-label-pro::before {
+            content: '';
+            width: 3px;
+            height: 12px;
+            background: #3b82f6;
+            border-radius: 1px;
+        }
+
+        canvas#cancellationsChart,
+        canvas#pieChart {
+            max-height: 350px;
+            width: 100% !important;
+        }
+
+        .total-count-summary {
+            margin-top: 25px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text-bright);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-dark);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .total-count-summary span {
+            color: var(--punto-alerta);
+        }
+
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            max-height: calc(100vh - 250px);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-dark) transparent;
+        }
+
+        .table-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: var(--border-dark);
+            border-radius: 3px;
+        }
+
+        .legend-airplane {
+            width: 18px;
+            height: 18px;
+            color: #FFD700;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .airplane-marker {
+            background: none !important;
+            border: none !important;
+            transition: transform 0.3s ease-out;
+        }
+
+        .airplane-icon-wrapper {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        }
+
+        .airplane-icon-wrapper svg {
+            width: 100%;
+            height: 100%;
+            fill: #FFD700;
+            /* Amarillo pro */
+            stroke: #222;
+            stroke-width: 1.5px;
+        }
+
+        .airplane-arrival {
+            transform: rotate(180deg);
+        }
+
+        .airplane-departure {
+            transform: rotate(0deg);
+        }
+
+        /* Filtros Pro en Cabecera */
+        .table-header-pro {
+            background: var(--header-bg);
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header-pro h2 {
+            font-size: 0.85rem;
+            color: var(--accent-tech);
+            font-weight: 700;
+        }
+
+        .th-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            padding: 12px 15px;
+        }
+
+        th {
+            padding: 0 !important;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: var(--header-bg);
+            border-bottom: 2px solid var(--border-dark);
+            color: var(--accent-tech);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .filter-trigger {
+            color: #94a3b8;
+            transition: color 0.2s;
+            font-size: 0.8rem;
+        }
+
+        th:hover .filter-trigger {
+            color: var(--accent-tech);
+        }
+
+        .filter-trigger.active {
+            color: var(--punto-alerta);
+        }
+
+        .filter-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--header-bg);
+            border: 1px solid var(--border-dark);
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            padding: 8px 0;
+            margin-top: 5px;
+            text-align: left;
+            color: var(--text-bright);
+        }
+
+        .filter-panel.show {
+            display: block;
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .filter-search {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-dark);
+        }
+
+        .filter-search input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--border-dark);
+            background: var(--bg-principal);
+            color: var(--text-bright);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        .filter-search input:focus {
+            border-color: var(--accent-tech);
+        }
+
+        .filter-item {
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: var(--text-muted);
+        }
+
+        .filter-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-bright);
+        }
+
+        .filter-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--accent-tech);
+        }
+
+        .filter-actions {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border-dark);
+            display: flex;
+            justify-content: space-between;
+            background: var(--header-bg);
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--accent-tech);
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            opacity: 0.8;
+        }
+
+        .btn-text:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .btn-clear-all {
+            background: #fee2e2;
+            color: #ef4444;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            border: 1px solid #fecaca;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-clear-all:hover {
+            background: #fecaca;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 12px 15px;
+            font-size: 0.8rem;
+            border-bottom: 1px solid var(--border-dark);
+            color: var(--text-bright);
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Marcadores Mapa */
+
+        .leaflet-tooltip-own {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            /* Quitar recuadro fantasma */
+            color: #FFD700 !important;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 0;
+            text-shadow: none !important;
+            pointer-events: auto !important;
+            cursor: pointer;
+            white-space: nowrap;
+            z-index: 1000;
+            letter-spacing: 0.5px;
+        }
+
+        .leaflet-tooltip-left::before,
+        .leaflet-tooltip-right::before,
+        .leaflet-tooltip-top::before,
+        .leaflet-tooltip-bottom::before {
+            display: none !important;
+        }
+
+        .badge-salida {
+            background-color: #94a3b8;
+            color: #0a1f35;
+            font-weight: 800;
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            border: 1px solid #64748b;
+        }
+
+        .badge-llegada {
+            background-color: #0c3a5c;
+            color: #7dd3fc;
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            border: 1px solid #1e5a8a;
+        }
+
+        .leaflet-control-reset {
+            background-color: #fff;
+            width: 32px;
+            height: 32px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-bottom: 2px solid #e2e8f0;
+            transition: all 0.2s;
+            padding: 0;
+            text-decoration: none;
+        }
+
+        .badge-cancel {
+            background: #1A1D23;
+            color: #ff1a1a;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-weight: 800;
+            font-size: 0.7rem;
+            border: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .vuelo-id {
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .text-soft {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .counter-badge {
+            background: var(--punto-alerta);
+            color: white;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Radar Pulse System */
+        .hub-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hub-radar-pulse {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 215, 0, 0.05);
+            /* Igualado a la intensidad de los aviones */
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            /* Igualado a la intensidad de los aviones */
+            border-radius: 50%;
+            position: absolute;
+            animation: hub-radar-anim 3s infinite ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes hub-radar-anim {
+            0% {
+                transform: scale(0.2);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(3.5);
+                opacity: 0;
+            }
+        }
+
+        .hub-center-dot {
+            width: 16px;
+            height: 16px;
+            background: #FFD700;
+            border: 3px solid #1a1d23;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 1);
+            z-index: 1000;
+        }
+
+        .airplane-radar-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .airplane-pulse {
+            width: 80px;
+            /* Tamaño igual al HUB para crear la malla */
+            height: 80px;
+            background: rgba(255, 215, 0, 0.05);
+            /* Opacidad muy baja para elegancia */
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 50%;
+            position: absolute;
+            animation: hub-radar-anim 3s infinite ease-out;
+            /* Misma animación que el HUB */
+            pointer-events: none;
+        }
+
+        @keyframes airplane-pulse-anim {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .leaflet-tooltip-hub {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            /* Quitar recuadro fantasma */
+            color: #FFD700 !important;
+            font-weight: 900;
+            font-size: 1.1rem;
+            text-shadow: none !important;
+            /* Quitar sombra negra */
+            letter-spacing: 1px;
+        }
+
+        /* Estilos personalizados para el Popup (Dark Mode) */
+        .leaflet-popup-tip-container {
+            display: none !important;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--card-bg) !important;
+            color: var(--text-bright) !important;
+            border: 1px solid var(--border-dark) !important;
+            border-radius: 4px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 15px !important;
+            line-height: 1.4 !important;
+        }
+
+        .popup-header {
+            text-align: center;
+            border-bottom: 2px solid var(--punto-alerta);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+        }
+
+        .popup-header b {
+            font-size: 1.1rem;
+            color: var(--accent-tech);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .popup-flight-item {
+            border-bottom: 1px solid var(--linea-separadora);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .popup-flight-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .popup-flight-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .popup-flight-id {
+            color: var(--text-bright);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .popup-flight-time {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .popup-flight-info {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .leaflet-popup-close-button {
+            color: var(--text-muted) !important;
+            padding: 8px 8px 0 0 !important;
+        }
+
+        .leaflet-popup-close-button:hover {
+            color: var(--text-bright) !important;
+            background: transparent !important;
+        }
+
+        /* Custom Zoom Slider Styling */
+        .zoom-slider-container {
+            background: rgba(26, 29, 35, 0.9);
+            border: 1px solid var(--border-dark);
+            padding: 10px 5px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .zoom-slider-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .vertical-slider {
+            -webkit-appearance: none;
+            width: 4px;
+            height: 120px;
+            background: var(--border-dark);
+            outline: none;
+            border-radius: 2px;
+            writing-mode: bt-lr;
+            /* For some browsers */
+            appearance: slider-vertical;
+            /* For modern browsers */
+        }
+
+        .vertical-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #FFD700;
+            cursor: pointer;
+            border-radius: 2px;
+            border: 2px solid #1a1d23;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+
+        .vertical-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: #FFD700;
+            cursor: pointer;
+            border-radius: 2px;
+            border: 2px solid #1a1d23;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+
+        /* --- ESTILOS DE IMPRESIÓN PRO --- */
+        @media print {
+
+            header,
+            .btn-live,
+            .filter-controls,
+            .status-bar,
+            .btn-clear-all,
+            .filter-panel,
+            .card-title-fixed::before,
+            .chart-label-pro::before,
+            .legend-airplane {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            main {
+                display: block !important;
+                padding: 10px !important;
+            }
+
+            .card-container {
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+                background: white !important;
+                margin-bottom: 20px !important;
+                min-height: auto !important;
+            }
+
+            .card-title-fixed {
+                color: #0f172a !important;
+                background: #f8fafc !important;
+                border-bottom: 2px solid #0f172a !important;
+                font-size: 1rem !important;
+            }
+
+            .chart-grid {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 15px !important;
+                padding: 10px !important;
+                flex: none !important;
+            }
+
+            .chart-container-inner {
+                background: white !important;
+                border: 1px solid #e2e8f0 !important;
+                min-height: 380px !important;
+                padding: 15px !important;
+            }
+
+            .total-count-summary {
+                background: #f1f5f9 !important;
+                color: #0f172a !important;
+                border: 1px solid #cbd5e1 !important;
+                margin-top: 15px !important;
+                box-shadow: none !important;
+            }
+
+            .total-count-summary span {
+                color: #dc2626 !important;
+            }
+
+            .table-wrapper {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            table {
+                width: 100% !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+
+            th {
+                background: #f1f5f9 !important;
+                color: #0f172a !important;
+                border-bottom: 2px solid #0f172a !important;
+                padding: 10px !important;
+            }
+
+            td {
+                color: #334155 !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+                padding: 8px !important;
+            }
+
+            .vuelo-id {
+                color: #0f172a !important;
+            }
+
+            .badge-cancel {
+                background: #fee2e2 !important;
+                color: #dc2626 !important;
+                border: 1px solid #fecaca !important;
+                font-weight: 900 !important;
+            }
+
+            .badge-salida {
+                background: #f1f5f9 !important;
+                color: #475569 !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+
+            .badge-llegada {
+                background: #e0f2fe !important;
+                color: #0369a1 !important;
+                border: 1px solid #bae6fd !important;
+            }
+
+            .print-only-header {
+                display: block !important;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Encabezado exclusivo para impresión PDF -->
+    <div class="print-only-header" style="display: none; padding: 0 20px;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 25px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="width: 12px; height: 50px; background: #dc2626;"></div>
+                <div>
+                    <h1
+                        style="font-size: 1.8rem; color: #0f172a; margin: 0; font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -0.5px;">
+                        REPORTE TÉCNICO DE CANCELACIONES</h1>
+                    <p style="font-size: 0.9rem; color: #64748b; margin: 3px 0 0 0; font-weight: 600;">
+                        AIJCH - Sistema de Monitoreo Lima Airport</p>
+                </div>
+            </div>
+            <div style="text-align: right; font-family: 'Inter', sans-serif;">
+                <p id="print-date" style="font-size: 0.8rem; color: #64748b; margin: 0;">Fecha: --/--/----</p>
+                <p id="print-range" style="font-size: 0.9rem; color: #0f172a; margin: 5px 0 0 0; font-weight: 800;">
+                    Rango: ---</p>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-title-group">
+            <a href="index.html" class="btn-live">← MONITOREO EN VIVO</a>
+            <h1>HISTORIAL DE CANCELACIONES</h1>
+        </div>
+
+        <div class="filter-controls">
+            <div class="date-group">
+                <label>Desde:</label>
+                <div class="date-input-wrapper">
+                    <input type="date" id="date-from">
+                    <svg class="calendar-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </div>
+            </div>
+            <div class="date-group">
+                <label>Hasta:</label>
+                <div class="date-input-wrapper">
+                    <input type="date" id="date-to">
+                    <svg class="calendar-icon" viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </div>
+            </div>
+            <button id="btn-search-history" class="btn-search">
+                <span>🔍</span> CONSULTAR
+            </button>
+            <button id="btn-print-pdf" class="btn-search" style="background: #475569;">
+                <span>📄</span> IMPRIMIR PDF
+            </button>
+            <div id="sync-time" class="status-bar" style="margin-left: 10px;">Cargando historial...</div>
+        </div>
+    </header>
+
+    <main>
+        <div class="card-container">
+            <div class="card-title-fixed">ANÁLISIS DE CUMPLIMIENTO</div>
+            <div class="chart-grid">
+                <div class="chart-container-inner">
+                    <div class="chart-label-pro">VOLUMEN DE CANCELACIONES POR OPERADOR</div>
+                    <canvas id="cancellationsChart"></canvas>
+                    <div class="total-count-summary">TOTAL: <span id="total-bar-value">0</span></div>
+                </div>
+                <div class="chart-container-inner">
+                    <div class="chart-label-pro">PARTICIPACIÓN % EN CANCELACIONES</div>
+                    <canvas id="pieChart"></canvas>
+                    <div class="total-count-summary">TOTAL: <span id="total-pie-value">0</span></div>
+                </div>
+            </div>
+            <div
+                style="padding: 15px; font-size: 0.7rem; color: var(--text-muted); border-top: 1px solid var(--border-dark);">
+                <span>* Datos basados en reportes históricos procesados.</span>
+            </div>
+        </div>
+
+        <div class="card-container">
+            <div class="table-header-pro">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h2>PANEL DE CONTROL</h2>
+                    <div id="flight-count-badge" class="counter-badge">0</div>
+                    <button id="btn-reset-filters" class="btn-clear-all">
+                        <span>✕</span> LIMPIAR FILTROS
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="flights-table">
+                    <thead>
+                        <tr>
+                            <th data-field="fecha">
+                                <div class="th-content">
+                                    <span>Fecha</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-fecha"></div>
+                            </th>
+                            <th data-field="tipo">
+                                <div class="th-content">
+                                    <span>Sentido</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-tipo"></div>
+                            </th>
+                            <th data-field="vuelo">
+                                <div class="th-content">
+                                    <span>Vuelo</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-vuelo"></div>
+                            </th>
+                            <th data-field="aerolinea">
+                                <div class="th-content">
+                                    <span>Aerolínea</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-aerolinea"></div>
+                            </th>
+                            <th data-field="ciudad">
+                                <div class="th-content">
+                                    <span>Ciudad</span>
+                                    <span class="filter-trigger">▼</span>
+                                </div>
+                                <div class="filter-panel" id="filter-ciudad"></div>
+                            </th>
+                            <th>
+                                <div class="th-content"><span>H. Prog</span></div>
+                            </th>
+                            <th>
+                                <div class="th-content"><span>Estado</span></div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        let chartInstanceBar = null;
+        let chartInstancePie = null;
+        let lastData = null;
+        let activeFilters = { fecha: [], tipo: [], vuelo: [], aerolinea: [], ciudad: [] };
+
+        // Helper to get date in Peru (UTC-5)
+        function getPeruDate(offsetDays = 0) {
+            const now = new Date();
+            const peruTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Lima" }));
+            peruTime.setDate(peruTime.getDate() + offsetDays);
+            const y = peruTime.getFullYear();
+            const m = String(peruTime.getMonth() + 1).padStart(2, '0');
+            const d = String(peruTime.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // Set default dates: Yesterday Only (Peru Time)
+        const yesterday = getPeruDate(-1);
+        document.getElementById('date-to').value = yesterday;
+        document.getElementById('date-from').value = yesterday;
+
+        // Helper to parse DD/MM/YYYY into YYYY-MM-DD for comparison
+        function parseDate(dateStr) {
+            if (!dateStr || dateStr === "--/--/----") return null;
+            const [d, m, y] = dateStr.split('/');
+            return `${y}-${m}-${d}`;
+        }
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('vuelos_history.json');
+                const data = await response.json();
+                lastData = data;
+                renderDashboard(data);
+            } catch (e) {
+                console.warn("Error cargando historial.");
+                document.getElementById('sync-time').innerText = "ERROR CARGANDO DATOS";
+            }
+        }
+
+        function toggleFilterPanel(panelId) {
+            const panel = document.getElementById(panelId);
+            const isVisible = panel.classList.contains('show');
+            document.querySelectorAll('.filter-panel').forEach(p => p.classList.remove('show'));
+            if (!isVisible) {
+                renderFilterOptions(panelId);
+                panel.classList.add('show');
+            }
+        }
+
+        function renderFilterOptions(panelId) {
+            const field = panelId.replace('filter-', '');
+            const panel = document.getElementById(panelId);
+            if (!lastData) return;
+            const values = [...new Set(lastData.vuelos.map(v => v[field]))].sort();
+
+            let html = `<div class="filter-search"><input type="text" placeholder="Buscar..." oninput="filterLocalList(this)"></div><div class="filter-list">`;
+            values.forEach(val => {
+                const isChecked = activeFilters[field].includes(val);
+                html += `<label class="filter-item"><input type="checkbox" ${isChecked ? 'checked' : ''} onchange="updateFilter('${field}', '${val}', this.checked)"><span>${val}</span></label>`;
+            });
+            html += `</div><div class="filter-actions"><button class="btn-text" onclick="clearColumnFilter('${field}')">Limpiar</button><button class="btn-text" style="color:var(--punto-alerta)" onclick="closeAllPanels()">Cerrar</button></div>`;
+            panel.innerHTML = html;
+        }
+
+        function filterLocalList(input) {
+            const term = input.value.toLowerCase();
+            const items = input.parentElement.nextElementSibling.querySelectorAll('.filter-item');
+            items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; });
+        }
+
+        function updateFilter(field, value, isChecked) {
+            if (isChecked) { if (!activeFilters[field].includes(value)) activeFilters[field].push(value); }
+            else { activeFilters[field] = activeFilters[field].filter(v => v !== value); }
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const hasAnyFilter = Object.values(activeFilters).some(f => f.length > 0);
+            document.getElementById('btn-reset-filters').style.display = hasAnyFilter ? 'flex' : 'none';
+            Object.keys(activeFilters).forEach(field => {
+                const th = document.querySelector(`th[data-field="${field}"]`);
+                if (th) {
+                    const trigger = th.querySelector('.filter-trigger');
+                    if (activeFilters[field].length > 0) { trigger.classList.add('active'); trigger.innerText = '●'; }
+                    else { trigger.classList.remove('active'); trigger.innerText = '▼'; }
+                }
+            });
+            renderDashboard(lastData);
+        }
+
+        function closeAllPanels() { document.querySelectorAll('.filter-panel').forEach(p => p.classList.remove('show')); }
+
+        function renderDashboard(data) {
+            if (!data) return;
+            document.getElementById('sync-time').innerText = `ACTUALIZADO: ${data.ultima_sincronizacion || '---'}`;
+
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+
+            const vuelosFiltrados = data.vuelos.filter(v => {
+                let match = true;
+
+                // Date Range Filter (Translate DD/MM/YYYY to ISO for comparison)
+                const flightDateISO = parseDate(v.fecha);
+                if (dateFrom && flightDateISO < dateFrom) match = false;
+                if (dateTo && flightDateISO > dateTo) match = false;
+
+                // Column Filters
+                Object.keys(activeFilters).forEach(field => {
+                    if (activeFilters[field].length > 0 && !activeFilters[field].includes(String(v[field]))) match = false;
+                });
+                return match;
+            });
+
+            document.getElementById('flight-count-badge').innerText = `${vuelosFiltrados.length} CANCELACIONES`;
+
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
+
+            // Update Chart
+            updateChart(vuelosFiltrados);
+
+            vuelosFiltrados.sort((a, b) => {
+                const dateA = parseDate(a.fecha) + " " + (a.hora_prog || "00:00");
+                const dateB = parseDate(b.fecha) + " " + (b.hora_prog || "00:00");
+                return dateB.localeCompare(dateA); // Newest first
+            });
+
+            vuelosFiltrados.forEach(vuelo => {
+                const isSalida = vuelo.tipo === 'SALIDAS';
+                const badgeClass = isSalida ? 'badge-salida' : 'badge-llegada';
+                const row = `<tr>
+                    <td class="text-soft">${vuelo.fecha}</td>
+                    <td><span class="${badgeClass}">${isSalida ? '🛫 SALIDA' : '🛬 LLEGADA'}</span></td>
+                    <td class="vuelo-id">${vuelo.vuelo}</td>
+                    <td style="color: var(--text-muted); font-size: 0.75rem; opacity: 0.8;">${vuelo.aerolinea}</td>
+                    <td class="text-soft"><b>${vuelo.ciudad}</b></td>
+                    <td class="text-soft">${vuelo.hora_prog}</td>
+                    <td><span class="badge-cancel">CANCELADO</span></td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        function updateChart(vuelos) {
+            const total = vuelos.length;
+            document.getElementById('total-bar-value').innerText = total;
+            document.getElementById('total-pie-value').innerText = total;
+
+            const counts = {};
+            vuelos.forEach(v => {
+                counts[v.aerolinea] = (counts[v.aerolinea] || 0) + 1;
+            });
+
+            const labels = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+            const values = labels.map(l => counts[l]);
+
+            // Palette for charts (Professional and distinct)
+            const palette = [
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                '#ec4899', '#06b6d4', '#84cc16', '#fb7185', '#a78bfa'
+            ];
+
+            // 1. BAR CHART
+            const ctxBar = document.getElementById('cancellationsChart').getContext('2d');
+            if (chartInstanceBar) chartInstanceBar.destroy();
+
+            chartInstanceBar = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Vuelos Cancelados',
+                        data: values,
+                        backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1d23',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#94a3b8',
+                            borderColor: '#334155',
+                            borderWidth: 1
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            anchor: 'center',
+                            align: 'center',
+                            font: { weight: 'bold', size: 12 },
+                            formatter: (value) => value > 0 ? value : ''
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8' },
+                            beginAtZero: true
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#f8fafc', font: { weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+
+            // 2. PIE CHART
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            if (chartInstancePie) chartInstancePie.destroy();
+
+            chartInstancePie = new Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+                        borderColor: '#1a1d23',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8',
+                                padding: 15,
+                                font: { size: 10, weight: '600' },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1d23',
+                            borderColor: '#334155',
+                            borderWidth: 1
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: { weight: 'bold', size: 11 },
+                            formatter: (value, ctx) => {
+                                let sum = 0;
+                                let dataArr = ctx.chart.data.datasets[0].data;
+                                dataArr.map(data => { sum += data; });
+                                let percentage = (value * 100 / sum).toFixed(0) + "%";
+                                return value > 0 ? (value + "\n(" + percentage + ")") : '';
+                            },
+                            textAlign: 'center'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Listeners
+        document.getElementById('btn-reset-filters').addEventListener('click', () => {
+            activeFilters = { fecha: [], tipo: [], vuelo: [], aerolinea: [], ciudad: [] };
+            applyFilters();
+        });
+
+        document.getElementById('btn-search-history').addEventListener('click', () => {
+            renderDashboard(lastData);
+        });
+
+        // Lógica de Impresión PDF
+        document.getElementById('btn-print-pdf').addEventListener('click', () => {
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+            const now = new Date();
+            const nowStr = now.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            document.getElementById('print-date').innerText = `Generado el: ${nowStr}`;
+            document.getElementById('print-range').innerText = `PERÍODO: ${dateFrom} AL ${dateTo}`;
+
+            window.print();
+        });
+
+        document.querySelectorAll('th[data-field]').forEach(th => {
+            th.querySelector('.th-content').addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleFilterPanel(`filter-${th.getAttribute('data-field')}`);
+            });
+        });
+
+        document.addEventListener('click', (e) => { if (!e.target.closest('.filter-panel')) closeAllPanels(); });
+
+        // Init
+        updateDashboard();
+    </script>
+</body>
+
+</html>

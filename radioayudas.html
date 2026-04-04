@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radioayudas Perú - Mapa de Frecuencias</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style_frecuencias.css">
+</head>
+<body>
+    <header>
+        <div class="header-title-group">
+            <h1>RADIOAYUDAS PERÚ - CONTROL OPERATIVO</h1>
+        </div>
+        <div class="status-bar" id="data-status" style="display: flex; align-items: center; gap: 10px;">
+            <div class="status-dot"></div>
+            <span id="data-status-text">Sincronizando base de datos...</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Card del Mapa -->
+        <div class="card-container map-card">
+            <div class="card-title-fixed">MAPA DE FRECUENCIAS</div>
+            <div id="map"></div>
+            <div class="map-legend">
+                <div class="legend-dot"></div>
+                <span>Radioayudas</span>
+            </div>
+        </div>
+
+        <!-- Card del Panel de Control (Derecha) -->
+        <div class="card-container panel-card">
+            <div class="table-header-pro">
+                <div class="header-main" style="display:flex; align-items:center; gap:10px;">
+                    <h2>PANEL DE CONTROL</h2>
+                    <div id="total-count" class="counter-badge">0</div>
+                </div>
+                <button id="btn-reset" class="btn-clear-all" style="display:none;">✕ LIMPIAR FILTROS</button>
+            </div>
+            
+            <div class="table-wrapper">
+                <table id="frecuencias-table">
+                    <thead>
+                        <tr id="table-headers">
+                            <!-- Los encabezados se generarán dinámicamente -->
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Las filas se generarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Centrado (Ficha Técnica) -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <div id="modal-body">
+                <!-- Se llena dinámicamente con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- SheetJS (Lector de Excel para JS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="logic_frecuencias.js"></script>
+</body>
+</html>
