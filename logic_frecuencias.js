@@ -112,7 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data.length === 0) return;
 
-        const headers = Object.keys(data[0]).filter(h => !h.startsWith('__EMPTY'));
+        const headers = Object.keys(data[0]).filter(h => {
+            const hUpper = h.toUpperCase();
+            return !hUpper.startsWith('__EMPTY') && !hUpper.includes('LATITUD') && !hUpper.includes('LONGITUD');
+        });
         headers.forEach(header => {
             const th = document.createElement('th');
             // Ajustar anchos específicos según columna (VALORES FORZADOS)
@@ -166,7 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
         tableBody.innerHTML = '';
         
         if (data.length === 0) return;
-        const headers = Object.keys(data[0]).filter(h => !h.startsWith('__EMPTY'));
+        const headers = Object.keys(data[0]).filter(h => {
+            const hUpper = h.toUpperCase();
+            return !hUpper.startsWith('__EMPTY') && !hUpper.includes('LATITUD') && !hUpper.includes('LONGITUD');
+        });
 
         data.forEach(row => {
             const tr = document.createElement('tr');
@@ -175,7 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
             headers.forEach(header => {
                 const td = document.createElement('td');
                 const h = header.toUpperCase();
-                td.innerText = row[header] || '-';
+                let cellData = row[header] || '-';
+                if (typeof cellData === 'string') {
+                    // Reemplazar saltos de línea por espacios y quitar espacios múltiples superpuestos
+                    cellData = cellData.replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+                }
+                td.innerText = cellData;
 
                 // Aplicar color celeste cian a columnas de DATOS TÉCNICOS
                 if (h.includes('FRECUENCIA') || h.includes('LATITUD') || h.includes('LONGITUD') || h.includes('ESTADO') || h.includes('ICAO')) {
