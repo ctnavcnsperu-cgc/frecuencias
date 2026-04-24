@@ -55,11 +55,17 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             div.onclick = (e) => {
                 e.preventDefault();
-                if (allMarkers.length > 0) {
-                    const group = L.featureGroup(allMarkers);
+                // Filtrar marcadores que están dentro de un rango razonable para Perú
+                // (Lat entre -20 y 2, Lon entre -85 y -65)
+                const validPeruMarkers = allMarkers.filter(m => {
+                    const latlng = m.getLatLng();
+                    return latlng.lat < 2 && latlng.lat > -20 && latlng.lng < -65 && latlng.lng > -85;
+                });
+
+                if (validPeruMarkers.length > 0) {
+                    const group = L.featureGroup(validPeruMarkers);
                     map.fitBounds(group.getBounds(), { padding: [30, 30] });
                     
-                    // Si el zoom resultante es muy pequeño (lejano), forzar a nivel 6
                     if (map.getZoom() < 6) {
                         map.setZoom(6);
                     }
@@ -296,18 +302,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function dmsToDecimal(dmsStr) {
         if (!dmsStr || typeof dmsStr !== 'string') return parseFloat(dmsStr);
         
-        // Limpiar el string de espacios y caracteres raros
+        // Limpiar el string de espacios y normalizar símbolos comunes
         const cleanStr = dmsStr.trim().replace(/’/g, "'").replace(/”/g, '"').replace(/º/g, "°");
         
-        // Regex mejorado para capturar grados, minutos, segundos y dirección (soporta espacios y diferentes formatos)
-        const regex = /(\d+)\s*°?\s*(\d+)\s*['′]?\s*([\d\.]+)\s*["″]?\s*([NSEWnsew])/i;
+        // Regex robusto para capturar grados, minutos, segundos y dirección
+        // Soporta: 013°32'08.60'”S, 03°47'05.06''S, 09º21’37.772”S, etc.
+        const regex = /(\d+)\s*[°º]?\s*(\d+)\s*['′’]?\s*([\d\.,]+)\s*['′’"″” ]+\s*([NSEWnsew])/i;
         const parts = cleanStr.match(regex);
         
-        if (!parts) return parseFloat(dmsStr);
+        if (!parts) {
+            // Intento final: ver si es un número decimal simple
+            const num = parseFloat(cleanStr.replace(',', '.'));
+            return isNaN(num) ? NaN : num;
+        }
 
         const degrees = parseFloat(parts[1]);
         const minutes = parseFloat(parts[2]);
-        const seconds = parseFloat(parts[3]);
+        const seconds = parseFloat(parts[3].replace(',', '.'));
         const direction = parts[4].toUpperCase();
 
         let decimal = degrees + (minutes / 60) + (seconds / 3600);
