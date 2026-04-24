@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style_frecuencias.css">
 </head>
+
 <body>
     <header>
         <div class="header-title-group">
@@ -40,11 +42,13 @@
                     <div id="total-count" class="counter-badge">0</div>
                 </div>
                 <div class="header-actions" style="display:flex; gap:12px; align-items:center;">
-                    <a id="btn-aip" class="btn-aip" href="https://drive.google.com/drive/folders/1TT--65Y_2WQng77VaEW8OU1kZvsLn8JW?usp=sharing" target="_blank" style="text-decoration: none;">📖 INFORMACIÓN AIP</a>
+                    <a id="btn-aip" class="btn-aip"
+                        href="https://drive.google.com/drive/folders/1G9MuyXRaMBfvfHsYkyn3i1weLdN84rrF?usp=sharing"
+                        target="_blank" style="text-decoration: none;">📖 INFORMACIÓN AIP</a>
                     <button id="btn-reset" class="btn-clear-all" style="display:none;">✕ LIMPIAR FILTROS</button>
                 </div>
             </div>
-            
+
             <div class="table-wrapper">
                 <table id="frecuencias-table">
                     <thead>
@@ -76,4 +80,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="logic_frecuencias.js"></script>
 </body>
+
 </html>
