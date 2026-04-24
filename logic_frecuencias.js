@@ -1,6 +1,6 @@
 /* logic_frecuencias.js */
 document.addEventListener('DOMContentLoaded', () => {
-    const EXCEL_PATH = 'Frecuencias Peru.xlsx';
+    const EXCEL_PATH = 'Perú V.1.xlsx';
     let map;
     let miniMap; // Para el mapa interno del modal
     let allMarkers = [];
@@ -112,21 +112,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data.length === 0) return;
 
-        const headers = Object.keys(data[0]).filter(h => {
-            const hUpper = h.toUpperCase();
-            return !hUpper.startsWith('__EMPTY') && !hUpper.includes('LATITUD') && !hUpper.includes('LONGITUD');
+        // Columnas permitidas (Mapeo de nombres antiguos y nuevos)
+        const allowedColumns = [
+            { id: 'icao', label: 'CODIGO ICAO', keys: ['CODIGO ICAO', 'Airport ICAO code', 'ICAO'] },
+            { id: 'ubicacion', label: 'UBICACION / AEROPUERTO', keys: ['UBICACION / AEROPUERTO', 'Location/airport name', 'Ubicación'] },
+            { id: 'frecuencia', label: 'FRECUENCIA', keys: ['FRECUENCIA', 'Frequency', 'Frecuencia'] },
+            { id: 'servicio', label: 'SERVICIO', keys: ['SERVICIO', 'Service', 'Servicio'] },
+            { id: 'estado', label: 'ESTADO', keys: ['ESTADO', 'Estado', 'States', 'Remarks'] }
+        ];
+
+        // Guardar el mapeo detectado para usarlo en renderRows
+        window.currentMapping = allowedColumns.map(col => {
+            const foundKey = Object.keys(data[0]).find(k => col.keys.includes(k));
+            return { ...col, actualKey: foundKey || col.keys[0] };
         });
+
+        const headers = window.currentMapping;
         headers.forEach(header => {
             const th = document.createElement('th');
-            // Ajustar anchos específicos según columna (VALORES FORZADOS)
-            const h = header.toUpperCase();
-            if (h.includes('LATITUD')) {
-                th.style.width = '150px';
-                th.style.minWidth = '150px';
-            } else if (h.includes('LONGITUD')) {
-                th.style.width = '150px';
-                th.style.minWidth = '150px';
-            } else if (h.includes('UBICACION') || h.includes('AEROPUERTO')) {
+            const h = header.label.toUpperCase();
+            
+            // Ajustar anchos específicos según columna
+            if (h.includes('UBICACION') || h.includes('AEROPUERTO')) {
                 th.style.width = '240px';
                 th.style.minWidth = '240px';
             } else if (h.includes('ICAO')) {
@@ -136,29 +143,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 th.style.width = '90px';
                 th.style.minWidth = '90px';
             } else if (h.includes('ESTADO')) {
-                th.style.width = '90px';
-                th.style.minWidth = '90px';
+                th.style.width = '120px';
+                th.style.minWidth = '120px';
             } else if (h.includes('SERVICIO')) {
-                th.style.width = '80px';
-                th.style.minWidth = '80px';
+                th.style.width = '100px';
+                th.style.minWidth = '100px';
             }
 
             th.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleFilter('${header}')">
-                    <span>${header}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleFilter('${header.actualKey}')">
+                    <span>${header.label}</span>
                     <span style="font-size:10px; color:#94a3b8;">▼</span>
                 </div>
-                <div id="filter-${header}" class="filter-dropdown" style="display:none; position:absolute; background:#21262e; border:1px solid #334155; padding:10px; z-index:2000; min-width:180px; border-radius:4px; margin-top:5px; box-shadow:0 10px 30px rgba(0,0,0,0.8);">
-                    <input type="text" placeholder="Filtrar..." onkeyup="filterColumn('${header}', this.value)" style="width:100%; background:#0f1115; border:1px solid #334155; color:#fff; padding:6px; font-size:11px; margin-bottom:8px; border-radius:3px; outline:none;">
-                    <div id="options-${header}" style="max-height:150px; overflow-y:auto; font-size:11px; color:#94a3b8;"></div>
+                <div id="filter-${header.actualKey}" class="filter-dropdown" style="display:none; position:absolute; background:#21262e; border:1px solid #334155; padding:10px; z-index:2000; min-width:180px; border-radius:4px; margin-top:5px; box-shadow:0 10px 30px rgba(0,0,0,0.8);">
+                    <input type="text" placeholder="Filtrar..." onkeyup="filterColumn('${header.actualKey}', this.value)" style="width:100%; background:#0f1115; border:1px solid #334155; color:#fff; padding:6px; font-size:11px; margin-bottom:8px; border-radius:3px; outline:none;">
+                    <div id="options-${header.actualKey}" style="max-height:150px; overflow-y:auto; font-size:11px; color:#94a3b8;"></div>
                     <div class="filter-actions">
-                        <button class="btn-text" onclick="window.resetOneFilter('${header}', event)">Limpiar</button>
+                        <button class="btn-text" onclick="window.resetOneFilter('${header.actualKey}', event)">Limpiar</button>
                         <button class="btn-text btn-text-red" onclick="window.closeAllFilters(event)">Cerrar</button>
                     </div>
                 </div>
             `;
             headRow.appendChild(th);
-            populateFilterOptions(header, originalData);
+            populateFilterOptions(header.actualKey, originalData);
         });
 
         renderRows(data);
@@ -169,10 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tableBody.innerHTML = '';
         
         if (data.length === 0) return;
-        const headers = Object.keys(data[0]).filter(h => {
-            const hUpper = h.toUpperCase();
-            return !hUpper.startsWith('__EMPTY') && !hUpper.includes('LATITUD') && !hUpper.includes('LONGITUD');
-        });
+        const headers = window.currentMapping || [];
 
         data.forEach(row => {
             const tr = document.createElement('tr');
@@ -180,16 +184,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             headers.forEach(header => {
                 const td = document.createElement('td');
-                const h = header.toUpperCase();
-                let cellData = row[header] || '-';
+                const h = header.label.toUpperCase();
+                let cellData = row[header.actualKey] || '-';
                 if (typeof cellData === 'string') {
-                    // Reemplazar saltos de línea por espacios y quitar espacios múltiples superpuestos
                     cellData = cellData.replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
                 }
                 td.innerText = cellData;
 
-                // Aplicar color celeste cian a columnas de DATOS TÉCNICOS
-                if (h.includes('FRECUENCIA') || h.includes('LATITUD') || h.includes('LONGITUD') || h.includes('ESTADO') || h.includes('ICAO')) {
+                if (h.includes('FRECUENCIA') || h.includes('ESTADO') || h.includes('ICAO')) {
                     td.style.color = '#7dd3fc';
                     td.style.fontWeight = '700';
                 }
@@ -199,10 +201,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ACCIÓN AL HACER CLIC EN LA FILA
             tr.onclick = () => {
-                const icao = row['CODIGO ICAO'] || row['icao'] || 'S/I';
-                const group = allGroups[icao];
+                const icaoKeys = ['CODIGO ICAO', 'Airport ICAO code', 'ICAO'];
+                const icao = icaoKeys.reduce((acc, k) => acc || row[k], null) || 'S/I';
+                const locationKeys = ['AEROPUERTO', 'UBICACION', 'Location/airport name', 'Ubicación'];
+                const location = locationKeys.reduce((acc, k) => acc || row[k], null) || 'S/I';
+                
+                const groupKey = (icao === '-' || icao === 'S/I' || !icao) ? `GRP_${location.trim()}` : icao;
+                const group = allGroups[groupKey];
+                
                 if (group) {
-                    // Abrir Únicamente el Modal
                     openModal(icao, group);
                 }
             };
@@ -263,12 +270,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.getElementById('btn-reset').onclick = () => {
+    // Lógica unificada para el botón Reset (Limpiar Filtros)
+    const handleReset = () => {
+        // 1. Restaurar Datos y Tabla
         renderRows(originalData);
         plotMarkers(originalData);
-        document.getElementById('btn-reset').style.display = 'none';
+        
+        // 2. Limpiar Inputs de Filtros
         document.querySelectorAll('.filter-dropdown input').forEach(i => i.value = '');
+        
+        // 3. Ocultar el botón reset
+        const btnReset = document.getElementById('btn-reset');
+        if (btnReset) btnReset.style.display = 'none';
+
+        // 4. Restaurar Mapa al centro de Perú
+        if (map) {
+            map.setView([-9.19, -75.01], 6);
+            console.log('Mapa restaurado al centro de Perú.');
+        }
     };
+
+    document.getElementById('btn-reset').onclick = handleReset;
 
     // 4. Dibujar Puntos en el Mapa (con soporte para GMS)
     function dmsToDecimal(dmsStr) {
@@ -277,11 +299,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpiar el string de espacios y caracteres raros
         const cleanStr = dmsStr.trim().replace(/’/g, "'").replace(/”/g, '"').replace(/º/g, "°");
         
-        // Regex para capturar grados, minutos, segundos y dirección
-        const regex = /(\d+)\D+(\d+)\D+([\d\.]+)\D+([NSEWnsew])/;
+        // Regex mejorado para capturar grados, minutos, segundos y dirección (soporta espacios y diferentes formatos)
+        const regex = /(\d+)\s*°?\s*(\d+)\s*['′]?\s*([\d\.]+)\s*["″]?\s*([NSEWnsew])/i;
         const parts = cleanStr.match(regex);
         
-        if (!parts) return parseFloat(dmsStr); // Si ya es decimal, devolverlo tal cual
+        if (!parts) return parseFloat(dmsStr);
 
         const degrees = parseFloat(parts[1]);
         const minutes = parseFloat(parts[2]);
@@ -302,25 +324,38 @@ document.addEventListener('DOMContentLoaded', () => {
         allMarkers = [];
         allGroups = {}; // Reiniciar grupos al redibujar
 
-        // 1. Agrupar datos por ICAO en el almacén global
+        // 1. Agrupar datos por ICAO (o por ubicación si no tiene ICAO)
         data.forEach(row => {
-            const icao = row['CODIGO ICAO'] || row['icao'] || 'S/I';
-            if (!allGroups[icao]) {
-                allGroups[icao] = {
+            const icaoKeys = ['CODIGO ICAO', 'Airport ICAO code', 'ICAO'];
+            const icao = icaoKeys.reduce((acc, k) => acc || row[k], null) || 'S/I';
+            const locationKeys = ['AEROPUERTO', 'UBICACION', 'Location/airport name', 'Ubicación'];
+            const location = locationKeys.reduce((acc, k) => acc || row[k], null) || 'S/I';
+            
+            // Si el ICAO es un guion o no existe, usamos una clave única basada en la ubicación para evitar agrupar estaciones distintas
+            const groupKey = (icao === '-' || icao === 'S/I' || !icao) ? `GRP_${location.trim()}` : icao;
+
+            if (!allGroups[groupKey]) {
+                allGroups[groupKey] = {
                     info: row,
+                    icao: icao, // Guardamos el ICAO real para mostrar en el modal
                     count: 0,
                     frecuencias: []
                 };
             }
-            allGroups[icao].count++;
-            allGroups[icao].frecuencias.push(row);
+            allGroups[groupKey].count++;
+            allGroups[groupKey].frecuencias.push(row);
         });
 
         // 2. Dibujar pines por cada grupo
-        Object.keys(allGroups).forEach(icao => {
-            const group = allGroups[icao];
-            const lat = dmsToDecimal(group.info['LATITUD'] || group.info['latitud']);
-            const lon = dmsToDecimal(group.info['LONGITUD'] || group.info['longitud']);
+        Object.keys(allGroups).forEach(groupKey => {
+            const group = allGroups[groupKey];
+            const latKeys = ['LATITUD', 'Latitude', 'latitud'];
+            const lonKeys = ['LONGITUD', 'Longitude', 'longitud'];
+            const latRaw = latKeys.reduce((acc, k) => acc || group.info[k], null);
+            const lonRaw = lonKeys.reduce((acc, k) => acc || group.info[k], null);
+            
+            const lat = dmsToDecimal(latRaw);
+            const lon = dmsToDecimal(lonRaw);
 
             if (!isNaN(lat) && !isNaN(lon)) {
                 // Crear icono con número central
@@ -373,19 +408,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const overlay = document.getElementById('modal-overlay');
         const body = document.getElementById('modal-body');
 
-        // Buscador robusto de nombre de aeropuerto
+        // Buscador robusto de nombre de aeropuerto (Case-insensitive)
         const findName = (obj) => {
-            const keys = Object.keys(obj);
-            const targetKey = keys.find(k => {
-                const upper = k.toUpperCase();
-                return upper.includes('AEROPUERTO') || upper.includes('UBICACION');
+            const targetKeywords = ['AEROPUERTO', 'UBICACION', 'LOCATION', 'AIRPORT', 'UBICACIÓN'];
+            const foundKey = Object.keys(obj).find(k => {
+                const upperK = k.toUpperCase();
+                return targetKeywords.some(tk => upperK.includes(tk));
             });
-            return targetKey ? obj[targetKey] : 'ESTACIÓN DESCONOCIDA';
+            return foundKey ? obj[foundKey] : 'ESTACIÓN DESCONOCIDA';
         };
 
         const airportName = findName(group.info);
-        const lat = dmsToDecimal(group.info['LATITUD'] || group.info['latitud']);
-        const lon = dmsToDecimal(group.info['LONGITUD'] || group.info['longitud']);
+        const latKeys = ['LATITUD', 'Latitude', 'latitud'];
+        const lonKeys = ['LONGITUD', 'Longitude', 'longitud'];
+        const latRaw = latKeys.reduce((acc, k) => acc || group.info[k], null);
+        const lonRaw = lonKeys.reduce((acc, k) => acc || group.info[k], null);
+        const lat = dmsToDecimal(latRaw);
+        const lon = dmsToDecimal(lonRaw);
         
         let content = `
             <div class="modal-layout-dual">
@@ -420,15 +459,23 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         group.frecuencias.forEach(f => {
-            const isEnUso = String(f['ESTADO']).toLowerCase().includes('uso');
+            const serviceKeys = ['SERVICIO', 'Service', 'Servicio'];
+            const freqKeys = ['FRECUENCIA', 'Frequency', 'Frecuencia'];
+            const stateKeys = ['ESTADO', 'Estado', 'States', 'Remarks'];
+            
+            const service = serviceKeys.reduce((acc, k) => acc || f[k], null) || '-';
+            const freq = freqKeys.reduce((acc, k) => acc || f[k], null) || '-';
+            const state = stateKeys.reduce((acc, k) => acc || f[k], null) || '-';
+
+            const isEnUso = String(state).toLowerCase().includes('uso') || String(state).toLowerCase().includes('use');
             content += `
                 <div style="display:grid; grid-template-columns: 1.2fr 1fr 0.8fr; gap:15px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); align-items:center;">
-                    <div style="font-size:14px; font-weight:700; color:#fff;">${f['SERVICIO'] || '-'}</div>
-                    <div style="font-size:15px; font-weight:900; color:#7dd3fc; font-family:'Roboto Mono', monospace;">${f['FRECUENCIA'] || '-'}</div>
+                    <div style="font-size:14px; font-weight:700; color:#fff;">${service}</div>
+                    <div style="font-size:15px; font-weight:900; color:#7dd3fc; font-family:'Roboto Mono', monospace;">${freq}</div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <div style="width:8px; height:8px; border-radius:50%; background:${isEnUso ? '#10b981' : '#ef4444'}; box-shadow:0 0 8px ${isEnUso ? '#10b981' : '#ef4444'};"></div>
                         <div style="font-size:11px; font-weight:800; color:${isEnUso ? '#ffffff' : '#ef4444'}; text-transform:uppercase;">
-                            ${f['ESTADO'] || '-'}
+                            ${state}
                         </div>
                     </div>
                 </div>
@@ -438,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         content += `
                     </div>
                     <div style="margin-top:20px; padding-top:15px; border-top:1px solid #334155; font-size:12px; color:#facc15; text-align:right; font-family:monospace; font-weight:900; background:rgba(0,0,0,0.3); padding:10px; border-radius:4px;">
-                        <span style="color:#94a3b8; font-size:10px; letter-spacing:1px; margin-right:5px;">GEOPOSICIÓN:</span> ${group.info['LATITUD']} / ${group.info['LONGITUD']}
+                        <span style="color:#94a3b8; font-size:10px; letter-spacing:1px; margin-right:5px;">GEOPOSICIÓN:</span> ${latRaw} / ${lonRaw}
                     </div>
                 </div>
             </div>
@@ -470,19 +517,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initMap();
     loadExcelData();
 
-    // Evento del botón Limpiar Filtros
-    document.getElementById('btn-reset').addEventListener('click', () => {
-        // Restaurar la tabla completa
-        renderRows(originalData);
-        // Ocultar botón
-        document.getElementById('btn-reset').style.display = 'none';
-        // El mapa se resetea por una función previa en initMap (pero vamos a llamar específicamente al reset del mapa si es necesario)
-        if (allMarkers.length > 0) {
-            const group = L.featureGroup(allMarkers);
-            map.fitBounds(group.getBounds(), { padding: [30, 30] });
-            if (map.getZoom() < 6) map.setZoom(6);
-        } else {
-            map.setView([-9.19, -75.01], 6);
-        }
-    });
+    // El evento del botón ya fue manejado arriba con .onclick por simplicidad y para evitar duplicados
 });
